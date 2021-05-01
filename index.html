@@ -30,6 +30,14 @@
         <a href="https://github.com/flyingdrnick/pysel">
           Step 4. install scoring engine for linux
         </a>
+          ssh -i ~/.ssh/keypair.pem ubuntu@public-ip
+        <br>
+          cd pysel
+        <br>
+          ./localinstall
+        <br>
+        sudo ./quickinstall
+        <br>
       </p>
       <br>
       <p>
@@ -42,8 +50,6 @@
         <a href="https://youtu.be/zNRmP8ngq4A">
           Step 6. reboot the server and connect via ssh tunnel with vncviewer
         </a>
-        <br>
-          ssh -i ~/.ssh/keypair.pem ubuntu@public-ip
         <br>
           ssh -i ~/.ssh/keypair.pem -L 5901:localhost:5901 ubuntu@public-ip
         <br>
