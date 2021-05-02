@@ -39,6 +39,12 @@
         <br>  
           https://serverfault.com/questions/855872/how-to-wait-for-user-data-script-to-run-when-starting-ec2-instances-with-ansible
         <br>
+          - name: Wait for cloud-init / user-data to finish
+        <br>    
+            command: cloud-init status --wait
+        <br>    
+            changed_when: false
+        <br>
           cd pysel
         <br>
           ./localinstall
