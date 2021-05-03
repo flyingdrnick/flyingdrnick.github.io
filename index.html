@@ -21,11 +21,11 @@
           Step 2. deploy an ubuntu server in AWS via cdk
         </a>
       </p>
-        ssh in then reboot
+        ssh in to check progress if you are curious, reboot is required but not necessary during testing
       <br>
       <p>
         <a href="https://github.com/sdarwin/Ansible-VNC">
-          Step 3. deploy an ubuntu desktop via ansible playbook
+          Step 3. deploy an ubuntu desktop via user data / ansible playbook
         </a>
       </p>
       <br>
@@ -34,25 +34,11 @@
           Step 4. install scoring engine for linux
         </a>
         <br>
-          ssh -i ~/.ssh/keypair.pem ubuntu@public-ip
-        <br>
-          cloud-init status
-        <br>
           tail /var/log/cloud-init-output.log
-        <br>  
-          https://serverfault.com/questions/855872/how-to-wait-for-user-data-script-to-run-when-starting-ec2-instances-with-ansible
         <br>
-          - name: Wait for cloud-init / user-data to finish
-        <br>    
-            command: cloud-init status --wait
-        <br>    
-            changed_when: false
+          update the ip addresses from the cdk output into the awshosts
         <br>
-          cd pysel
-        <br>
-          ./localinstall
-        <br>
-        sudo ./quickinstall
+          ansible-playbook -i awshosts playbooks/cybertaipan-install.yml
         <br>
       </p>
       <br>
