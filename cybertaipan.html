@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cybertaipan Technical Recipes</title>
+  </head>
+  <body>
+    Welcome to copycat recipes. The aim is to use opensource and reduce reinventing the wheel.
+      <br>
+      <p>
+        <a href="https://www.youtube.com/watch?v=MgfzMTKoQYY">
+          Step 1. CDK workshop showing you how to use Cloud 9
+        </a>
+        <br>
+          https://docs.aws.amazon.com/cloud9/latest/user-guide/sample-cdk.html
+        <br>
+      </p>
+      <br>
+      <p>
+        <a href="https://dev.to/emmanuelnk/part-3-simple-ec2-instance-awesome-aws-cdk-37ia">
+          Step 2. deploy an ubuntu server in AWS via cdk
+        </a>
+      </p>
+        ssh in to check progress if you are curious, reboot is required but not necessary during testing
+      <br>
+      <p>
+        <a href="https://github.com/sdarwin/Ansible-VNC">
+          Step 3. deploy an ubuntu desktop via user data / ansible playbook
+        </a>
+      </p>
+      <br>
+      <p>
+        <a href="https://github.com/flyingdrnick/pysel">
+          Step 4. install scoring engine for linux
+        </a>
+        <br>
+          tail /var/log/cloud-init-output.log
+        <br>
+          update the ip addresses from the cdk output into the awshosts
+        <br>
+          ansible-playbook -i awshosts playbooks/cybertaipan-install.yml
+        <br>
+      </p>
+      <br>
+      <p>
+        <a href="https://github.com/flyingdrnick/ansible-playbook-ubuntu-desktop">
+          Step 5. introduce faults using ansible playbook
+        </a>
+        <br>
+          install ansible inside cloud9
+        <br>
+          https://www.rubycoloredglasses.com/2019/04/ansible/ https://github.com/redconfetti/cloud9-dev
+        <br>
+          https://computingforgeeks.com/manage-users-and-groups-on-linux-using-ansible/
+        <br>
+          user.yml and user_delete.yml have been added to the ansible-playbook-ubuntu-desktop repo
+        <br>
+          https://docs.ansible.com/ansible/2.5/modules/user_module.html
+        <br>
+      </p>
+      <br>
+      <p>
+        <a href="https://youtu.be/zNRmP8ngq4A">
+          Step 6. reboot the server and connect via ssh tunnel with vncviewer
+        </a>
+        <br>
+          ssh -i ~/.ssh/keypair.pem -L 5901:localhost:5901 ubuntu@public-ip
+        <br>
+          localhost:5901
+        <br>
+          https://www.royalapps.com/ts/win/download
+        <br>
+      </p>
+  </body>
+</html>
