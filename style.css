@@ -2,8 +2,8 @@ body{
   text-align:center;
 }
 .center {
-  margin-left: 30%;
-  margin-right: 30%;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 table {
