@@ -1,11 +1,11 @@
 body{
-  text-align:center;
+  text-align:justify;
+  font-family: Comic Sans MS;
 }
 .center {
   margin-left: auto;
   margin-right: auto;
 }
-
 table {
   list-style-type: none;
   margin: 0;
