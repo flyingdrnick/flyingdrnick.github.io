@@ -43,9 +43,6 @@ body {
  		for (var i=1; i<=numberOfSides; i++) {
 			 ctx.lineTo(radiusOuter*Math.cos(i * angle), radiusOuter*Math.sin(i * angle));
 		}
- 		ctx.stroke();
-		ctx.beginPath();
-		ctx.translate(x, y);
 		ctx.moveTo(radiusInner, 0);          
  		for (var i=1; i<=numberOfSides; i++) {
 			 ctx.lineTo(radiusInner*Math.cos(i * angle), radiusInner*Math.sin(i * angle));
