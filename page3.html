@@ -26,6 +26,23 @@ body {
       <th><a href="page4.html">CyberTaipan</a></th>
     </tr>
   </table>
-    <body> 
-    </body>
+  <body>
+	<canvas id="myCanvas" width="600" height="400">Your browser does not support the HTML5 canvas tag. </canvas>
+	<script>
+		var canvas = document.getElementById('myCanvas')
+		var ctx = canvas.getContext('2d');
+		var numberOfSides = 12;
+		var radius=100;
+		var x = 125;
+		var y = 125;
+		var angle = 2*Math.PI/numberOfSides;
+ 		ctx.beginPath();
+		ctx.translate(x, y);
+		ctx.moveTo(radius, 0);          
+ 		for (var i=1; i<=numberOfSides; i++) {
+			 ctx.lineTo(radius*Math.cos(i * angle), radius*Math.sin(i * angle));
+		}
+ 		ctx.stroke();
+	</script>
+  </body>
   </html>
