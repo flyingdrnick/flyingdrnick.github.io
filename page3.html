@@ -32,15 +32,23 @@ body {
 		var canvas = document.getElementById('myCanvas')
 		var ctx = canvas.getContext('2d');
 		var numberOfSides = 12;
-		var radius=100;
+		var radiusOuter=100;
+		var radiusInner=95;
 		var x = 125;
 		var y = 125;
 		var angle = 2*Math.PI/numberOfSides;
  		ctx.beginPath();
 		ctx.translate(x, y);
-		ctx.moveTo(radius, 0);          
+		ctx.moveTo(radiusOuter, 0);          
  		for (var i=1; i<=numberOfSides; i++) {
-			 ctx.lineTo(radius*Math.cos(i * angle), radius*Math.sin(i * angle));
+			 ctx.lineTo(radiusOuter*Math.cos(i * angle), radiusOuter*Math.sin(i * angle));
+		}
+ 		ctx.stroke();
+		ctx.beginPath();
+		ctx.translate(x, y);
+		ctx.moveTo(radiusInner, 0);          
+ 		for (var i=1; i<=numberOfSides; i++) {
+			 ctx.lineTo(radiusInner*Math.cos(i * angle), radiusInner*Math.sin(i * angle));
 		}
  		ctx.stroke();
 	</script>
