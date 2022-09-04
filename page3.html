@@ -236,7 +236,6 @@ function hex_to_ascii(str1)
 	for (var n = 0; n < hex.length; n += 2) {
 		str += String.fromCharCode(parseInt(hex.substr(n, 2), 16));
 	}
-	console.log(str);
 	return str;
 }
 function hex2bin(hex){
@@ -248,7 +247,9 @@ function hex2bin(hex){
 	'A5D75A'));
 
 		
-	console.log(a ^ b);
+	console.log(a);
+	console.log(b);
+	
 	</script>
   </body>
   </html>
