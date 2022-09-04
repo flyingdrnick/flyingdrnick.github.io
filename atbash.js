@@ -1,4 +1,4 @@
-var textin = 'KZKVI QZN WRKKVI HZBH: \'ZFFTSDCJSTZWHZWFS!\' / V. KOFIRYFH GIVNYOVB / MLG S.T. DVOOH ZKKILEVW / HLIIB, WRKKVI, YFG BLFI DVMWB RH RM ZMLGSVI XZHGOV. / GSV RMERHRYOV DRAZIW RH DZGXSRMT. / YILFTSG GL BLF YB SLNVDLIP: GSV XZMWB / SVZEB RH GSV SVZW GSZG DVZIH GSV UVA / eswfup rif dps vlojtsys // dps kwj / tiasedwofe / oe bsfy / ulsbsf // uwj ps / pots poe / hlwse / rifsbsf? // dps kwj / tiajedwofe / oe bsfy / ulsbsf // uwj ps / pots poe / hlwje / rifsbsf? // okhfihsf / ces ir / kwupojsfy / uiclt // lswt / di cddsf / uwdwedfihps';
+var textin = 'DVZIVZFWZXRLFHRMXLMXVKGZMWNVGRXFOLFHRMVCVXFGRLMURMWXOZIRGBRM7DRWGSC5WVKGS';
 var alphabet = 'abcdefghijklmnopqrstuvwxyz'.split('');
 // runs on page load using jQuery
 $(function(){
