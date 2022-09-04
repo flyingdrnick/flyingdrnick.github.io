@@ -241,14 +241,43 @@ function hex_to_ascii(str1)
 function hex2bin(hex){
     return (parseInt(hex, 16).toString(2)).padStart(8, '0');
 }
+function binaryToDecimal(x) {
+  const parsed = parseInt(x, 2);
+  if (isNaN(parsed)) { return 0; }
+  return parsed;
+}
+
+function decimalToHex(x) {
+  var parsed = x;
+  
+  hexstr = ""
+  while(parsed > 0) {
+    var value = parsed % 16
+    hexstr = (
+      value == 10 ? "A" : (
+        value == 11 ? "B" : (
+        value == 12 ? "C" : (
+        value == 13 ? "D" : (
+        value == 14 ? "E" : (
+        value == 15 ? "F": value)))))) + hexstr
+    parsed = parseInt(parsed / 16)
+  }
+  
+  return '0x'+ hexstr;
+}
+
+function binaryToHex(x) {
+  return decimalToHex(binaryToDecimal(s))
+}
+
+
 	const a = hex2bin(convertASCIIToHex(
 	'E3B826'));
 	const b = hex2bin(convertASCIIToHex(
 	'A5D75A'));
+	console.log(hex_to_ascii(binaryToHex(a)));
+	console.log(hex_to_ascii(binaryToHex(b)));
 
-		
-	console.log(a);
-	console.log(b);
 	
 	</script>
   </body>
