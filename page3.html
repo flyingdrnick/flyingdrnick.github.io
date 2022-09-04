@@ -266,14 +266,10 @@ function decimalToHex(x) {
 function binaryToHex(x) {
   return decimalToHex(binaryToDecimal(x))
 }
-	const a = hex2bin(convertASCIIToHex(
-	'E3'));
-	const b = hex2bin(convertASCIIToHex(
-	'A5'));
-	console.log(a);
-	console.log(b);
-	console.log(binaryToHex(a));
-	console.log(binaryToHex(b));	
+	const a = hex2bin(convertASCIIToHex('E3'));
+	const b = hex2bin(convertASCIIToHex('A5'));
+	console.log(decimalToHex(a));
+	console.log(decimalToHex(b));	
 	</script>
   </body>
   </html>
