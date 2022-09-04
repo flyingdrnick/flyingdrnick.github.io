@@ -266,10 +266,24 @@ function decimalToHex(x) {
 function binaryToHex(x) {
   return decimalToHex(binaryToDecimal(x))
 }
-	const a = convertASCIIToHex('E3B8');
-	const b = convertASCIIToHex('A5D7');
-	console.log(hex2bin(a));
-	console.log(hex2bin(b));	
+function asciiToBinary(input) {
+		var result = "";
+		for (var i = 0; i < input.length; i++) {
+			var bin = input[i].charCodeAt().toString(2);
+			result += Array(8 - bin.length + 1).join("0") + bin;
+		} 
+		return result;
+	}
+function binaryToAscii(input) {
+		var result = "";
+		var arr = input.match(/.{1,8}/g);
+		for (var i = 0; i < arr.length; i++) {
+			result += String.fromCharCode(parseInt(arr[i], 2).toString(10));
+		}
+		return result;
+	}
+	const a = hex2bin('E3B8');
+	const b = hex2bin('A5D7');	
 	</script>
   </body>
   </html>
