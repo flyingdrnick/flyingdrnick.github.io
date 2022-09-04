@@ -81,44 +81,6 @@ body {
 		  206D6BE383<br> 
 		  1108B<br>
 	  </p>
-	<div class="code-wrap notranslate" translate="no">
-<pre id="js" class="code-box" aria-labeledby="js-editor-title">
-              <code>
-                var textin = &#39;KZKVI QZN WRKKVI HZBH: \&#39;ZFFTSDCJSTZWHZWFS!\&#39; / V. KOFIRYFH GIVNYOVB / MLG S.T. DVOOH ZKKILEVW / HLIIB, WRKKVI, YFG BLFI DVMWB RH RM ZMLGSVI XZHGOV. / GSV RMERHRYOV DRAZIW RH DZGXSRMT. / YILFTSG GL BLF YB SLNVDLIP: GSV XZMWB / SVZEB RH GSV SVZW GSZG DVZIH GSV UVA / eswfup rif dps vlojtsys // dps kwj / tiasedwofe / oe bsfy / ulsbsf // uwj ps / pots poe / hlwse / rifsbsf? // dps kwj / tiajedwofe / oe bsfy / ulsbsf // uwj ps / pots poe / hlwje / rifsbsf? // okhfihsf / ces ir / kwupojsfy / uiclt // lswt / di cddsf / uwdwedfihps&#39;;
-var alphabet = &#39;abcdefghijklmnopqrstuvwxyz&#39;.split(&#39;&#39;);
-// runs on page load using jQuery
-$(function(){
-	// puts the title and input text on the page using jQuery
-	$(&#39;body&#39;).append(&#39;&lt;h1&gt;Atbash&lt;/h1&gt;&#39;);
-	$(&#39;h1&#39;).after(&#39;Text in: &lt;div id=&quot;in&quot;&gt;&#39; + textin + &#39;&lt;/div&gt;&#39;);
-	// we will put this together letter by letter
-	var textout = &#39;&#39;;
-	// goes through each letter in the input text
-	for(var i = 0; i &lt; textin.length; i++){
-		// current letter
-		var letter = textin[i];
-		// the index of the current letter in the alphabet
-		var positionInAlphabet = alphabet.indexOf(letter.toLowerCase());
-		if(positionInAlphabet &gt; -1){
-			// SWITCH A AND Z
-			var newPosition = alphabet.length-1 - positionInAlphabet;
-			// adds the new letter to the output
-			textout += alphabet[newPosition];
-		} else {
-			// indexOf returns -1 when there is no match
-			// i.e. the character is a space, punctuation etc and should not be modified
-			textout += letter;
-		}
-	}
-	// inserts the output text onto the page using jQuery
-	$(&#39;#in&#39;).after(&#39;Text out: &lt;div id=&quot;out&quot;&gt;&#39; + textout + &#39;&lt;/div&gt;&#39;);
-});
-              </code>
-            </pre>
-<div class="error-bar" id="error-bar-js">
-<span class="error-icon" data-type="js">
-!
-</span>
-</div>
+	
   </body>
   </html>
