@@ -84,8 +84,9 @@ th:last-child, td:last-child {
 		}
 	}
 		 document.write(textout);
-	// inserts the output text onto the page using jQuery
+		 var document.getElementById('output1').innerHTML = textout;
 	</script>
+	  <p id="output1"></p>
 	  <h1 style="color: #F31313"><b>Inner Ring Ceasar Box 7 width by 5 depth</b></h1>	  
 	          BGOAMVOEIATSIRLNGTTNEOGRERGXNTEAIFCECAIEOALEKFNR5LWEFCHDEEAEEE7NMDRXX5<br>
 
@@ -285,8 +286,7 @@ function binaryToAscii(input) {
 	const a = hex2bin('E3B8287D');
 	const b = hex2bin('A5D75A5D');
 	console.log(a);
-	console.log(b);
-	console.log((a ^ b).toString(16));	
+	console.log(b);	
 	</script>
   </body>
   </html>
