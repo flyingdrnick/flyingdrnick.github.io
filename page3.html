@@ -262,10 +262,8 @@ function decimalToHex(x) {
         value == 15 ? "F": value)))))) + hexstr
     parsed = parseInt(parsed / 16)
   }
-  
-  return '0x'+ hexstr;
+  return hexstr;
 }
-
 function binaryToHex(x) {
   return decimalToHex(binaryToDecimal(s))
 }
