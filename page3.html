@@ -239,7 +239,7 @@ function hex_to_ascii(str1)
 	return str;
 }
 function hex2bin(hex){
-    return (parseInt(hex, 16).toString(2)).padStart(8, '0');
+    return ("00000000" + (parseInt(hex, 16)).toString(2)).substr(-8);
 }
 function binaryToDecimal(x) {
   const parsed = parseInt(x, 2);
