@@ -217,13 +217,11 @@ th:last-child, td:last-child {
 		  206D6BE383<br> 
 		  1108B<br>
 	  </p>
-	<script>function xor(hex1, hex2) {
-  const buf1 = Buffer.from(hex1, 'hex');
-  const buf2 = Buffer.from(hex2, 'hex');
+	<script>
+  const buf1 = Buffer.from('E3B82', 'hex');
+  const buf2 = Buffer.from('A5D75', 'hex');
   const bufResult = buf1.map((b, i) => b ^ buf2[i]);
-  return bufResult.toString('hex');
-};
-		document.write(xor('E3B82','A5D75'));
+		document.write(bufResult.toString('hex'));
 	</script>
 	
   </body>
