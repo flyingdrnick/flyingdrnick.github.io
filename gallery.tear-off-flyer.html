@@ -38,9 +38,14 @@
             display: block;
             text-align: center;
             font-size: 1.3em;
-            margin-bottom: 36px;
+            margin-bottom: 18px;
             color: #0066cc;
             word-break: break-all;
+        }
+        .qr-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
         }
         .tearoffs {
             display: flex;
@@ -66,7 +71,7 @@
             user-select: all;
         }
         .tearoff:first-child {
-            border-left: none;
+            border-left: 2px solid #111;
         }
         @media print {
             body {
@@ -96,6 +101,9 @@
         <a class="main-link" href="https://www.nicholaslau.com" target="_blank">
             www.nicholaslau.com
         </a>
+        <div class="qr-container">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=https://www.nicholaslau.com" alt="QR code for www.nicholaslau.com" width="140" height="140">
+        </div>
         <div style="flex:1"></div>
         <div class="tearoffs">
             <div class="tearoff">https://www.nicholaslau.com</div>
