@@ -7,32 +7,38 @@
         body {
             font-family: Arial, sans-serif;
             background: #fff;
-            padding: 40px;
+            padding: 0;
+            margin: 0;
         }
         .flyer {
-            max-width: 400px;
+            width: 210mm;
+            height: 297mm;
+            box-sizing: border-box;
             margin: 0 auto;
             border: 2px solid #333;
-            padding: 24px 16px 80px 16px;
+            padding: 36mm 18mm 45mm 18mm;
             position: relative;
             background: #fafafa;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
         }
         .flyer h2 {
             text-align: center;
-            margin-bottom: 12px;
-            font-size: 1.5em;
+            margin-bottom: 18px;
+            font-size: 2.2em;
             color: #222;
         }
         .flyer p {
             text-align: center;
-            margin-bottom: 18px;
-            font-size: 1.1em;
+            margin-bottom: 28px;
+            font-size: 1.3em;
         }
         .flyer .main-link {
             display: block;
             text-align: center;
-            font-size: 1.1em;
-            margin-bottom: 24px;
+            font-size: 1.3em;
+            margin-bottom: 36px;
             color: #0066cc;
             word-break: break-all;
         }
@@ -42,13 +48,15 @@
             position: absolute;
             left: 0;
             right: 0;
-            bottom: 12px;
-            padding: 0 8px;
+            bottom: 0;
+            padding: 0 10mm;
+            height: 45mm;
+            align-items: flex-end;
         }
         .tearoff {
             border-left: 1px dashed #333;
-            padding: 6px 8px 0 8px;
-            font-size: 0.9em;
+            padding: 8px 6px 0 6px;
+            font-size: 1em;
             text-align: center;
             writing-mode: vertical-lr;
             transform: rotate(180deg);
@@ -64,10 +72,14 @@
             body {
                 background: #fff;
                 padding: 0;
+                margin: 0;
             }
             .flyer {
                 box-shadow: none;
                 border: 2px solid #000;
+                width: 210mm;
+                height: 297mm;
+                padding: 36mm 18mm 45mm 18mm;
             }
             .tearoff {
                 background: #fff !important;
@@ -83,6 +95,7 @@
         <a class="main-link" href="https://www.nicholaslau.com/gallery.html" target="_blank">
             www.nicholaslau.com/gallery.html
         </a>
+        <div style="flex:1"></div>
         <div class="tearoffs">
             <div class="tearoff">nicholaslau.com/gallery.html</div>
             <div class="tearoff">nicholaslau.com/gallery.html</div>
