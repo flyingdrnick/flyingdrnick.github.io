@@ -6,27 +6,60 @@
     <title>Market Stall Gallery</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #fafafa;
+        }
         .gallery {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            padding: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            padding: 10px 5vw 30px 5vw;
+            box-sizing: border-box;
         }
         .gallery img {
             width: 100%;
-            height: auto;
+            height: 180px;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
             object-fit: cover;
+            background: #eee;
+            transition: transform 0.2s;
+        }
+        .gallery img:hover {
+            transform: scale(1.04);
         }
         h1 {
             text-align: center;
-            margin-top: 24px;
+            margin-top: 18px;
+            font-size: 2em;
+            color: #333;
         }
         .welcome {
             text-align: center;
-            font-size: 1.2em;
-            margin-bottom: 10px;
+            font-size: 1.1em;
+            margin-bottom: 12px;
+            color: #444;
+            padding: 0 10vw;
+        }
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 1.3em;
+                margin-top: 12px;
+            }
+            .welcome {
+                font-size: 1em;
+                padding: 0 4vw;
+            }
+            .gallery {
+                gap: 8px;
+                padding: 8px 2vw 20px 2vw;
+            }
+            .gallery img {
+                height: 110px;
+            }
         }
     </style>
 </head>
@@ -41,6 +74,31 @@
         <img src="market-photos/IMG_8862.jpg" alt="Market Photo 3">
         <img src="market-photos/IMG_8865.jpg" alt="Market Photo 4">
         <img src="market-photos/photo5.jpg" alt="Market Photo 5">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 6">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 7">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 8">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 9">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 10">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 11">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 12">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 13">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 14">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 15">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 16">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 17">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 18">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 19">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 20">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 21">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 22">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 23">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 24">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 25">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 26">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 27">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 28">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 29">
+        <img src="market-photos/photo5.jpg" alt="Market Photo 30">
         <!-- ... up to photo50.jpg ... -->
     </div>
 </body>
