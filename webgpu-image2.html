@@ -51,12 +51,12 @@
     <div class="hud-panel">
       <div class="hud-header">
         <span class="hud-title">HEIMDALL 3D — WEBGPU CT</span>
-        <span class="badge" id="gpu-badge">r16unorm</span>
+        <span class="badge" id="gpu-badge">DETECTING...</span>
       </div>
 
       <div class="status-box" id="status-indicator">
         <div class="spinner" id="status-spinner"></div>
-        <span id="status-text">Fetching Real Medical CT Scan...</span>
+        <span id="status-text">Fetching CT Scan Dataset...</span>
       </div>
 
       <div class="control-group">
@@ -84,7 +84,7 @@
       </div>
 
       <div class="hud-footer">
-        <div>• <b>Source:</b> UNC CT Head Dataset (16-bit pipeline)</div>
+        <div>• <b>Source:</b> UNC CT Head Dataset</div>
         <div>• <b>Left Click + Drag:</b> 3D Orbit Rotate</div>
         <div>• <b>Scroll Wheel:</b> Zoom In / Out</div>
       </div>
@@ -195,34 +195,28 @@
     }
 
     async function fetchRealCTVolume() {
-      const dataUrl = 'https://cdn.jsdelivr.net/gh/vtkiorg/vtk-js@master/Data/volume/headsq.raw';
+      const dataUrl = 'https://raw.githubusercontent.com/Kitware/medical-express-viewer/master/public/data/headsq.raw';
       try {
         const response = await fetch(dataUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const buffer = await response.arrayBuffer();
         const raw8 = new Uint8Array(buffer);
-        
-        // Convert 8-bit source into 16-bit Uint16Array scale to demonstrate 16-bit texture pipeline
-        const raw16 = new Uint16Array(raw8.length);
-        for (let i = 0; i < raw8.length; i++) {
-          raw16[i] = raw8[i] * 257; // Upscale 0..255 to 0..65535
-        }
-        return { data: raw16, dimX: 128, dimY: 128, dimZ: 93 };
+        return { data: raw8, dimX: 128, dimY: 128, dimZ: 93 };
       } catch (err) {
-        console.warn("CDN fetch failed, using internal synthetic 16-bit CT dataset", err);
-        return generateSynthetic16BitCT(128, 128, 93);
+        console.warn("CDN fetch failed, generating internal synthetic CT volume", err);
+        return generateSyntheticCT(128, 128, 93);
       }
     }
 
-    function generateSynthetic16BitCT(dimX, dimY, dimZ) {
-      const data = new Uint16Array(dimX * dimY * dimZ);
+    function generateSyntheticCT(dimX, dimY, dimZ) {
+      const data = new Uint8Array(dimX * dimY * dimZ);
       for (let z = 0; z < dimZ; z++) {
         for (let y = 0; y < dimY; y++) {
           for (let x = 0; x < dimX; x++) {
             const idx = x + y * dimX + z * dimX * dimY;
             const nx = (x - dimX/2)/(dimX/2), ny = (y - dimY/2)/(dimY/2), nz = (z - dimZ/2)/(dimZ/2);
             const dist = Math.hypot(nx, ny, nz);
-            data[idx] = (dist > 0.35 && dist < 0.8) ? 45000 : (dist <= 0.35 ? 18000 : 0);
+            data[idx] = (dist > 0.35 && dist < 0.8) ? 180 : (dist <= 0.35 ? 70 : 0);
           }
         }
       }
@@ -318,14 +312,11 @@
         let numSteps = i32((tFar - tStart) / stepSize);
         let lightDir = normalize(vec3<f32>(0.8, 1.5, 1.2));
 
-        // Radiologic Windowing Bounds
         let winMin = uniforms.windowLevel - (uniforms.windowWidth * 0.5);
         let winMax = uniforms.windowLevel + (uniforms.windowWidth * 0.5);
 
         for (var i = 0; i < numSteps; i++) {
           let rawNormalized = textureSampleLevel(volumeTexture, volumeSampler, rayPos, 0.0).r;
-
-          // GPU Window/Level Contrast Adjusting
           let windowedDensity = clamp((rawNormalized - winMin) / (winMax - winMin), 0.0, 1.0);
 
           if (windowedDensity > 0.01) {
@@ -364,7 +355,14 @@
         return;
       }
 
-      const device = await adapter.requestDevice();
+      // Safeguard against missing WebGPU 16-bit feature support on specific GPUs/drivers
+      const requiredFeatures = [];
+      const hasTier1 = adapter.features.has('texture-formats-tier1');
+      if (hasTier1) {
+        requiredFeatures.push('texture-formats-tier1');
+      }
+
+      const device = await adapter.requestDevice({ requiredFeatures });
       const canvas = document.getElementById('webgpu-canvas');
       const context = canvas.getContext('webgpu');
 
@@ -378,39 +376,54 @@
         alphaMode: 'premultiplied',
       });
 
-      // 1. Fetch 16-Bit CT Dataset
+      // Fetch Volume
       const ctVolume = await fetchRealCTVolume();
-      
+
+      // Dynamic Format Assignment (r16unorm vs r8unorm fallback)
+      const is16BitSupported = device.features.has('texture-formats-tier1');
+      const texFormat = is16BitSupported ? 'r16unorm' : 'r8unorm';
+      const bytesPerTexel = is16BitSupported ? 2 : 1;
+
+      document.getElementById('gpu-badge').textContent = texFormat;
       document.getElementById('status-spinner').style.display = 'none';
       document.getElementById('status-indicator').style.borderColor = 'rgba(34, 197, 94, 0.4)';
-      document.getElementById('status-text').textContent = `Loaded 16-bit CT: ${ctVolume.dimX}x${ctVolume.dimY}x${ctVolume.dimZ}`;
+      document.getElementById('status-text').textContent = `Loaded CT (${texFormat}): ${ctVolume.dimX}x${ctVolume.dimY}x${ctVolume.dimZ}`;
       document.getElementById('status-text').style.color = '#4ade80';
 
-      // 2. Align 16-bit buffer (Uint16Array = 2 bytes/texel) to 256-byte row stride
-      const bytesPerTexel = 2;
-      const unpaddedBytesPerRow = ctVolume.dimX * bytesPerTexel; // 128 * 2 = 256 bytes
-      const paddedBytesPerRow = Math.ceil(unpaddedBytesPerRow / 256) * 256; // 256 bytes
-      const paddedBuffer = new Uint16Array((paddedBytesPerRow / bytesPerTexel) * ctVolume.dimY * ctVolume.dimZ);
+      // Ensure proper 256-byte alignment per row for writeTexture
+      const unpaddedBytesPerRow = ctVolume.dimX * bytesPerTexel;
+      const paddedBytesPerRow = Math.ceil(unpaddedBytesPerRow / 256) * 256;
+      const paddedElements = (paddedBytesPerRow / bytesPerTexel) * ctVolume.dimY * ctVolume.dimZ;
+      
+      const paddedBuffer = is16BitSupported 
+        ? new Uint16Array(paddedElements) 
+        : new Uint8Array(paddedElements);
 
       for (let z = 0; z < ctVolume.dimZ; z++) {
         for (let y = 0; y < ctVolume.dimY; y++) {
           const srcIdx = (z * ctVolume.dimY + y) * ctVolume.dimX;
           const dstIdx = (z * ctVolume.dimY + y) * (paddedBytesPerRow / bytesPerTexel);
-          paddedBuffer.set(ctVolume.data.subarray(srcIdx, srcIdx + ctVolume.dimX), dstIdx);
+          
+          if (is16BitSupported) {
+            for (let x = 0; x < ctVolume.dimX; x++) {
+              paddedBuffer[dstIdx + x] = ctVolume.data[srcIdx + x] * 257;
+            }
+          } else {
+            paddedBuffer.set(ctVolume.data.subarray(srcIdx, srcIdx + ctVolume.dimX), dstIdx);
+          }
         }
       }
 
-      // 3. Create 3D Texture with 'r16unorm' 16-bit precision
       const volumeTexture = device.createTexture({
         size: [ctVolume.dimX, ctVolume.dimY, ctVolume.dimZ],
         dimension: '3d',
-        format: 'r16unorm',
+        format: texFormat,
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
       });
 
       device.queue.writeTexture(
         { texture: volumeTexture },
-        paddedBuffer,
+        paddedBuffer.buffer,
         { bytesPerRow: paddedBytesPerRow, rowsPerImage: ctVolume.dimY },
         [ctVolume.dimX, ctVolume.dimY, ctVolume.dimZ]
       );
