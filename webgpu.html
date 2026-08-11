@@ -178,7 +178,6 @@
       out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
     }
 
-    // Generator: Procedural Cranium, Jaw, Eye Sockets, Nose, and Cervical Spine
     function generateAnatomicalVolume(dimX, dimY, dimZ) {
       const data = new Uint8Array(dimX * dimY * dimZ);
       const cx = dimX / 2, cy = dimY / 2, cz = dimZ / 2;
@@ -191,11 +190,11 @@
             const ny = (y - cy) / (dimY / 2);
             const nz = (z - cz) / (dimZ / 2);
 
-            // Cranium Shell (Bone)
+            // Cranium (Top)
             const craniumOuter = (nx*nx)/(0.55*0.55) + (ny*ny)/(0.68*0.68) + (nz*nz)/(0.55*0.55);
             const craniumInner = (nx*nx)/(0.46*0.46) + (ny*ny)/(0.58*0.58) + (nz*nz)/(0.46*0.46);
 
-            // Lower Jaw / Mandible
+            // Jaw (Bottom Front)
             const jaw = (nx*nx)/(0.42*0.42) + ((ny+0.35)*(ny+0.35))/(0.22*0.22) + ((nz-0.12)*(nz-0.12))/(0.38*0.38);
 
             // Eye Sockets
@@ -205,7 +204,7 @@
             // Nasal Cavity
             const nose = Math.hypot(nx, ny + 0.08, nz - 0.45);
 
-            // Spine
+            // Spine (Bottom Back)
             const spineDist = Math.hypot(nx, nz + 0.28);
 
             let density = 0;
@@ -215,12 +214,12 @@
             const isSpine = (spineDist < 0.12 && ny <= -0.25);
 
             if (isCranium || isJaw || isSpine) {
-              density = 220; // Bone High Density
+              density = 220; // Bone Density
             } else if (craniumInner < 1.0 && ny > -0.25) {
-              density = 100; // Brain / Soft Tissue
+              density = 100; // Soft Tissue
             }
 
-            // Hollow out Eye Sockets & Nose Cavity
+            // Hollow cavities
             if (eyeL < 0.14 || eyeR < 0.14 || nose < 0.11) {
               density = 0;
             }
@@ -293,8 +292,9 @@
 
       @fragment
       fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
-        let screenNear = vec4<f32>(in.uv.x * 2.0 - 1.0, (1.0 - in.uv.y) * 2.0 - 1.0, 0.0, 1.0);
-        let screenFar  = vec4<f32>(in.uv.x * 2.0 - 1.0, (1.0 - in.uv.y) * 2.0 - 1.0, 1.0, 1.0);
+        // Fixed vertical orientation (removed Y-flip)
+        let screenNear = vec4<f32>(in.uv.x * 2.0 - 1.0, in.uv.y * 2.0 - 1.0, 0.0, 1.0);
+        let screenFar  = vec4<f32>(in.uv.x * 2.0 - 1.0, in.uv.y * 2.0 - 1.0, 1.0, 1.0);
 
         var worldNearH = uniforms.invViewProj * screenNear;
         var worldFarH  = uniforms.invViewProj * screenFar;
@@ -330,10 +330,9 @@
             let norm = sampleGradient(rayPos, stepSize * 2.0);
             let diff = max(dot(-norm, lightDir), 0.20);
 
-            // Color bone vs tissue
             var baseColor = vec3<f32>(0.88, 0.82, 0.72) * diff;
             if (scalarDensity < 0.50) {
-              baseColor = vec3<f32>(0.65, 0.20, 0.15) * diff; // Inner tissue
+              baseColor = vec3<f32>(0.65, 0.20, 0.15) * diff;
             }
 
             let alpha = clamp((scalarDensity - uniforms.threshold) * uniforms.densityScale * stepSize, 0.0, 1.0);
@@ -425,7 +424,7 @@
         ],
       });
 
-      let radius = 2.2, theta = 0.8, phi = 0.4;
+      let radius = 2.2, theta = 0.8, phi = 1.2; // Adjusted camera elevation
       let isDragging = false, prevMouseX = 0, prevMouseY = 0;
 
       canvas.addEventListener('mousedown', (e) => {
@@ -444,7 +443,7 @@
         prevMouseY = e.clientY;
 
         theta -= dx * 0.005;
-        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi - dy * 0.005));
+        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi + dy * 0.005));
       });
 
       canvas.addEventListener('wheel', (e) => {
