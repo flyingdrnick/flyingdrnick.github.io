@@ -388,7 +388,7 @@
         { texture: volumeTexture },
         volumeData,
         { bytesPerRow: VOL_DIM, rowsPerImage: VOL_DIM },
-        { width: VOL_DIM, height: VOL_DIM, depth: VOL_DIM }
+        [VOL_DIM, VOL_DIM, VOL_DIM ]
       );
 
       const volumeSampler = device.createSampler({
