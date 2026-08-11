@@ -11,7 +11,6 @@
     canvas { width: 100%; height: 100%; display: block; cursor: grab; }
     canvas:active { cursor: grabbing; }
 
-    /* Clinical HUD UI Overlay */
     .hud-panel {
       position: absolute; top: 20px; left: 20px; width: 320px;
       background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
@@ -39,7 +38,6 @@
   <div id="canvas-container">
     <canvas id="webgpu-canvas"></canvas>
 
-    <!-- Clinical HUD Overlay -->
     <div class="hud-panel">
       <div class="hud-header">
         <span class="hud-title">HEIMDALL 3D</span>
@@ -49,39 +47,34 @@
       <div class="control-group">
         <div class="control-label">
           <span>Density Threshold (Bone/Tissue)</span>
-          <span id="threshold-val">0.32</span>
+          <span id="threshold-val">0.35</span>
         </div>
-        <input type="range" id="threshold-slider" min="0.10" max="0.70" step="0.01" value="0.32" />
+        <input type="range" id="threshold-slider" min="0.10" max="0.70" step="0.01" value="0.35" />
       </div>
 
       <div class="control-group">
         <div class="control-label">
           <span>Opacity Scale</span>
-          <span id="opacity-val">0.25</span>
+          <span id="opacity-val">12.0</span>
         </div>
-        <input type="range" id="opacity-slider" min="0.05" max="0.80" step="0.01" value="0.25" />
+        <input type="range" id="opacity-slider" min="1.0" max="30.0" step="0.5" value="12.0" />
       </div>
 
       <div class="hud-footer">
-        <div>• <b>Left Click + Drag:</b> 3D Orbit Rotate</div>
+        <div>• <b>Left Click + Drag:</b> Rotate Skull</div>
         <div>• <b>Scroll Wheel:</b> Zoom In / Out</div>
-        <div>• <b>Zero External CDN Dependencies</b></div>
       </div>
     </div>
 
-    <!-- Error Modal for unsupported browsers -->
     <div id="error-modal">
       <div class="error-card">
         <h2>WebGPU Not Available</h2>
-        <p>Your browser or graphics hardware does not currently have WebGPU enabled. Please open this URL in Google Chrome or Microsoft Edge on Windows, macOS, or Linux with graphics acceleration toggled ON.</p>
+        <p>Your browser or graphics hardware does not currently support WebGPU.</p>
       </div>
     </div>
   </div>
 
   <script>
-    // ------------------------------------------------------------------
-    // 1. INLINE ZERO-DEPENDENCY 3D MATRIX MATH (NO EXTERNAL CDNs)
-    // ------------------------------------------------------------------
     function mat4Perspective(out, fovy, aspect, near, far) {
       const f = 1.0 / Math.tan(fovy / 2);
       const nf = 1.0 / (near - far);
@@ -185,9 +178,7 @@
       out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
     }
 
-    // ------------------------------------------------------------------
-    // 2. PROCEDURAL ANATOMICAL VOLUME GENERATOR (3D Skull & Spine)
-    // ------------------------------------------------------------------
+    // Generator: Procedural Cranium, Jaw, Eye Sockets, Nose, and Cervical Spine
     function generateAnatomicalVolume(dimX, dimY, dimZ) {
       const data = new Uint8Array(dimX * dimY * dimZ);
       const cx = dimX / 2, cy = dimY / 2, cz = dimZ / 2;
@@ -196,26 +187,42 @@
         for (let y = 0; y < dimY; y++) {
           for (let x = 0; x < dimX; x++) {
             const idx = x + y * dimX + z * dimX * dimY;
-            const nx = (x - cx) / cx, ny = (y - cy) / cy, nz = (z - cz) / cz;
+            const nx = (x - cx) / (dimX / 2);
+            const ny = (y - cy) / (dimY / 2);
+            const nz = (z - cz) / (dimZ / 2);
 
-            const cranium = (nx * nx) / (0.6 * 0.6) + (ny * ny) / (0.75 * 0.75) + (nz * nz) / (0.6 * 0.6);
-            const brainCavity = (nx * nx) / (0.52 * 0.52) + (ny * ny) / (0.65 * 0.65) + (nz * nz) / (0.52 * 0.52);
+            // Cranium Shell (Bone)
+            const craniumOuter = (nx*nx)/(0.55*0.55) + (ny*ny)/(0.68*0.68) + (nz*nz)/(0.55*0.55);
+            const craniumInner = (nx*nx)/(0.46*0.46) + (ny*ny)/(0.58*0.58) + (nz*nz)/(0.46*0.46);
 
-            const eyeL = Math.sqrt((nx - 0.22)**2 + (ny - 0.2)**2 + (nz - 0.48)**2);
-            const eyeR = Math.sqrt((nx + 0.22)**2 + (ny - 0.2)**2 + (nz - 0.48)**2);
-            const spineRadius = Math.sqrt(nx * nx + (nz + 0.35) * (nz + 0.35));
+            // Lower Jaw / Mandible
+            const jaw = (nx*nx)/(0.42*0.42) + ((ny+0.35)*(ny+0.35))/(0.22*0.22) + ((nz-0.12)*(nz-0.12))/(0.38*0.38);
+
+            // Eye Sockets
+            const eyeL = Math.hypot(nx - 0.20, ny - 0.12, nz - 0.42);
+            const eyeR = Math.hypot(nx + 0.20, ny - 0.12, nz - 0.42);
+
+            // Nasal Cavity
+            const nose = Math.hypot(nx, ny + 0.08, nz - 0.45);
+
+            // Spine
+            const spineDist = Math.hypot(nx, nz + 0.28);
 
             let density = 0;
-            if (cranium <= 1.0 && brainCavity >= 1.0 && ny > -0.6) {
-              density = 220; // Skull Bone Shell
-            } else if (brainCavity < 1.0 && ny > -0.5) {
-              density = 80;  // Soft Tissue Brain
-            } else if (spineRadius < 0.15 && ny <= -0.4) {
-              density = 200; // Spine Column
+
+            const isCranium = (craniumOuter <= 1.0 && craniumInner >= 1.0 && ny > -0.38);
+            const isJaw = (jaw <= 1.0 && ny <= -0.18 && nz > -0.2);
+            const isSpine = (spineDist < 0.12 && ny <= -0.25);
+
+            if (isCranium || isJaw || isSpine) {
+              density = 220; // Bone High Density
+            } else if (craniumInner < 1.0 && ny > -0.25) {
+              density = 100; // Brain / Soft Tissue
             }
 
-            if (eyeL < 0.15 || eyeR < 0.15) {
-              density = 0;   // Hollow Eye Sockets
+            // Hollow out Eye Sockets & Nose Cavity
+            if (eyeL < 0.14 || eyeR < 0.14 || nose < 0.11) {
+              density = 0;
             }
 
             data[idx] = density;
@@ -225,9 +232,6 @@
       return data;
     }
 
-    // ------------------------------------------------------------------
-    // 3. WGSL SHADER CODE
-    // ------------------------------------------------------------------
     const wgslShader = `
       struct Uniforms {
         invViewProj  : mat4x4<f32>,
@@ -279,7 +283,12 @@
                  textureSampleLevel(volumeTexture, volumeSampler, pos - vec3<f32>(0.0, eps.y, 0.0), 0.0).r;
         let dz = textureSampleLevel(volumeTexture, volumeSampler, pos + vec3<f32>(0.0, 0.0, eps.z), 0.0).r -
                  textureSampleLevel(volumeTexture, volumeSampler, pos - vec3<f32>(0.0, 0.0, eps.z), 0.0).r;
-        return normalize(vec3<f32>(dx, dy, dz));
+        let g = vec3<f32>(dx, dy, dz);
+        let len = length(g);
+        if (len < 0.0001) {
+          return vec3<f32>(0.0, 1.0, 0.0);
+        }
+        return g / len;
       }
 
       @fragment
@@ -307,31 +316,32 @@
         }
 
         let tStart = max(tNear, 0.0);
-        let stepSize = 0.003;
+        let stepSize = 0.004;
         var rayPos = rayOrigin + rayDir * tStart;
         var accumulatedColor = vec4<f32>(0.0);
 
         let numSteps = i32((tFar - tStart) / stepSize);
-        let lightDir = normalize(vec3<f32>(1.0, 2.0, 1.5));
+        let lightDir = normalize(vec3<f32>(1.0, 1.8, 1.2));
 
         for (var i = 0; i < numSteps; i++) {
           let scalarDensity = textureSampleLevel(volumeTexture, volumeSampler, rayPos, 0.0).r;
 
           if (scalarDensity > uniforms.threshold) {
             let norm = sampleGradient(rayPos, stepSize * 2.0);
-            let diff = max(dot(-norm, lightDir), 0.25);
+            let diff = max(dot(-norm, lightDir), 0.20);
 
-            var baseColor = vec3<f32>(0.92, 0.88, 0.78) * diff; // Bone Ivory
-            if (scalarDensity < 0.45) {
-              baseColor = vec3<f32>(0.75, 0.25, 0.2) * diff; // Soft Tissue
+            // Color bone vs tissue
+            var baseColor = vec3<f32>(0.88, 0.82, 0.72) * diff;
+            if (scalarDensity < 0.50) {
+              baseColor = vec3<f32>(0.65, 0.20, 0.15) * diff; // Inner tissue
             }
 
-            let alpha = (scalarDensity - uniforms.threshold) * uniforms.densityScale;
-            let color = vec4<f32>(baseColor, alpha);
+            let alpha = clamp((scalarDensity - uniforms.threshold) * uniforms.densityScale * stepSize, 0.0, 1.0);
+            let weight = (1.0 - accumulatedColor.a) * alpha;
 
-            accumulatedColor += (1.0 - accumulatedColor.a) * color;
+            accumulatedColor += vec4<f32>(baseColor * weight, weight);
 
-            if (accumulatedColor.a >= 0.98) {
+            if (accumulatedColor.a >= 0.96) {
               break;
             }
           }
@@ -344,9 +354,6 @@
       }
     `;
 
-    // ------------------------------------------------------------------
-    // 4. ENGINE INITIALIZATION
-    // ------------------------------------------------------------------
     async function initEngine() {
       if (!navigator.gpu) {
         document.getElementById('error-modal').style.display = 'flex';
@@ -373,7 +380,6 @@
         alphaMode: 'premultiplied',
       });
 
-      // Volume Upload
       const VOL_DIM = 128;
       const volumeData = generateAnatomicalVolume(VOL_DIM, VOL_DIM, VOL_DIM);
 
@@ -388,7 +394,7 @@
         { texture: volumeTexture },
         volumeData,
         { bytesPerRow: VOL_DIM, rowsPerImage: VOL_DIM },
-        [VOL_DIM, VOL_DIM, VOL_DIM ]
+        [VOL_DIM, VOL_DIM, VOL_DIM]
       );
 
       const volumeSampler = device.createSampler({
@@ -419,7 +425,6 @@
         ],
       });
 
-      // Orbit Control State
       let radius = 2.2, theta = 0.8, phi = 0.4;
       let isDragging = false, prevMouseX = 0, prevMouseY = 0;
 
@@ -446,7 +451,6 @@
         radius = Math.max(1.1, Math.min(5.0, radius + e.deltaY * 0.002));
       });
 
-      // Zero-Allocation Matrix Scratchpads
       const projMatrix = new Float32Array(16);
       const viewMatrix = new Float32Array(16);
       const viewProjMatrix = new Float32Array(16);
@@ -499,7 +503,7 @@
         document.getElementById('threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
       });
       document.getElementById('opacity-slider').addEventListener('input', (e) => {
-        document.getElementById('opacity-val').textContent = parseFloat(e.target.value).toFixed(2);
+        document.getElementById('opacity-val').textContent = parseFloat(e.target.value).toFixed(1);
       });
 
       window.addEventListener('resize', () => {
