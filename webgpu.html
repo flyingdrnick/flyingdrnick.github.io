@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project Heimdall — WebGPU 3D Volume Engine</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; }
+    #canvas-container { width: 100vw; height: 100vh; position: relative; }
+    canvas { width: 100%; height: 100%; display: block; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+
+    /* Clinical HUD UI Overlay */
+    .hud-panel {
+      position: absolute; top: 20px; left: 20px; width: 320px;
+      background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px;
+      padding: 20px; box-shadow: 0 20px 40px rgba(0,0,0,0.5); z-index: 10;
+    }
+    .hud-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .hud-title { font-size: 16px; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px; }
+    .badge { font-size: 10px; font-weight: 700; background: #0284c7; color: #fff; padding: 3px 8px; border-radius: 12px; text-transform: uppercase; }
+    .control-group { margin-bottom: 14px; }
+    .control-label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #94a3b8; margin-bottom: 6px; }
+    input[type=range] { width: 100%; accent-color: #38bdf8; cursor: pointer; }
+    .hud-footer { font-size: 11px; color: #64748b; margin-top: 14px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; }
+    #error-modal {
+      display: none; position: absolute; inset: 0; background: rgba(8, 10, 15, 0.95);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .error-card { background: #1e1b4b; border: 1px solid #6366f1; border-radius: 12px; padding: 30px; max-width: 500px; text-align: center; }
+    .error-card h2 { color: #f43f5e; margin-bottom: 10px; }
+    .error-card p { font-size: 14px; color: #cbd5e1; line-height: 1.5; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <canvas id="webgpu-canvas"></canvas>
+
+    <!-- Clinical HUD Overlay -->
+    <div class="hud-panel">
+      <div class="hud-header">
+        <span class="hud-title">HEIMDALL 3D</span>
+        <span class="badge" id="gpu-badge">WebGPU</span>
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>Density Threshold (Bone/Tissue)</span>
+          <span id="threshold-val">0.32</span>
+        </div>
+        <input type="range" id="threshold-slider" min="0.10" max="0.70" step="0.01" value="0.32" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>Opacity Opacity Scale</span>
+          <span id="opacity-val">0.25</span>
+        </div>
+        <input type="range" id="opacity-slider" min="0.05" max="0.80" step="0.01" value="0.25" />
+      </div>
+
+      <div class="hud-footer">
+        <div>• <b>Left Click + Drag:</b> 3D Orbit Rotate</div>
+        <div>• <b>Scroll Wheel:</b> Zoom In / Out</div>
+        <div>• <b>Memory Footprint:</b> 16.7 MB VRAM Slab</div>
+      </div>
+    </div>
+
+    <!-- Error Modal for unsupported browsers -->
+    <div id="error-modal">
+      <div class="error-card">
+        <h2>WebGPU Not Available</h2>
+        <p>Your browser or graphics hardware does not currently have WebGPU enabled. Please open this URL in Google Chrome or Microsoft Edge on Windows, macOS, or Linux.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load wgpu-matrix via ES Module CDN for Zero-Allocation Matrix Math -->
+  <script type="module">
+    import { mat4, vec3 } from 'https://cdn.jsdelivr.net/npm/wgpu-matrix@2/+esm';
+
+    // ------------------------------------------------------------------
+    // 1. PROCEDURAL ANATOMICAL VOLUME GENERATOR (3D Skull & Spine)
+    // Generates a 256x256x256 3D voxel slab in RAM directly on load
+    // ------------------------------------------------------------------
+    function generateAnatomicalVolume(dimX, dimY, dimZ) {
+      const data = new Uint8Array(dimX * dimY * dimZ);
+      const cx = dimX / 2;
+      const cy = dimY / 2;
+      const cz = dimZ / 2;
+
+      for (let z = 0; z < dimZ; z++) {
+        for (let y = 0; y < dimY; y++) {
+          for (let x = 0; x < dimX; x++) {
+            const idx = x + y * dimX + z * dimX * dimY;
+            
+            // Normalized coordinates [-1, 1]
+            const nx = (x - cx) / cx;
+            const ny = (y - cy) / cy;
+            const nz = (z - cz) / cz;
+
+            // Skull Cranium Ellipsoid
+            const cranium = (nx * nx) / (0.6 * 0.6) + (ny * ny) / (0.75 * 0.75) + (nz * nz) / (0.6 * 0.6);
+            
+            // Brain Cavity
+            const brainCavity = (nx * nx) / (0.52 * 0.52) + (ny * ny) / (0.65 * 0.65) + (nz * nz) / (0.52 * 0.52);
+
+            // Eye Sockets
+            const eyeL = Math.sqrt((nx - 0.22)**2 + (ny - 0.2)**2 + (nz - 0.48)**2);
+            const eyeR = Math.sqrt((nx + 0.22)**2 + (ny - 0.2)**2 + (nz - 0.48)**2);
+
+            // Spine Cylinder
+            const spineRadius = Math.sqrt(nx * nx + (nz + 0.35) * (nz + 0.35));
+
+            let density = 0;
+
+            // Outer Skull Bone Shell (Hounsfield Density ~220)
+            if (cranium <= 1.0 && brainCavity >= 1.0 && ny > -0.6) {
+              density = 220;
+            }
+            // Soft Brain Tissue (Hounsfield Density ~80)
+            else if (brainCavity < 1.0 && ny > -0.5) {
+              density = 80;
+            }
+            // Vertebral Column
+            else if (spineRadius < 0.15 && ny <= -0.4) {
+              density = 200; // Bone
+            }
+
+            // Carve Eye Sockets
+            if (eyeL < 0.15 || eyeR < 0.15) {
+              density = 0; // Air
+            }
+
+            data[idx] = density;
+          }
+        }
+      }
+      return data;
+    }
+
+    // ------------------------------------------------------------------
+    // 2. WGSL SHADER SOURCE CODE
+    // ------------------------------------------------------------------
+    const wgslShader = `
+      struct Uniforms {
+        invViewProj  : mat4x4<f32>,
+        threshold    : f32,
+        densityScale : f32,
+        pad0         : f32,
+        pad1         : f32,
+      };
+
+      @group(0) @binding(0) var<uniform> uniforms : Uniforms;
+      @group(0) @binding(1) var volumeTexture   : texture_3d<f32>;
+      @group(0) @binding(2) var volumeSampler   : sampler;
+
+      struct VertexOutput {
+        @builtin(position) clipPos : vec4<f32>,
+        @location(0) uv : vec2<f32>,
+      };
+
+      @vertex
+      fn vs_main(@builtin(vertex_index) vertexIndex : u32) -> VertexOutput {
+        var pos = array<vec2<f32>, 4>(
+          vec2<f32>(-1.0, -1.0),
+          vec2<f32>( 1.0, -1.0),
+          vec2<f32>(-1.0,  1.0),
+          vec2<f32>( 1.0,  1.0)
+        );
+        var output : VertexOutput;
+        output.clipPos = vec4<f32>(pos[vertexIndex], 0.0, 1.0);
+        output.uv = pos[vertexIndex] * 0.5 + 0.5;
+        return output;
+      }
+
+      fn intersectBox(rayOrigin : vec3<f32>, rayDir : vec3<f32>, boxMin : vec3<f32>, boxMax : vec3<f32>) -> vec2<f32> {
+        let invDir = 1.0 / rayDir;
+        let t1 = (boxMin - rayOrigin) * invDir;
+        let t2 = (boxMax - rayOrigin) * invDir;
+        let tMin = min(t1, t2);
+        let tMax = max(t1, t2);
+        let tNear = max(max(tMin.x, tMin.y), tMin.z);
+        let tFar  = min(min(tMax.x, tMax.y), tMax.z);
+        return vec2<f32>(tNear, tFar);
+      }
+
+      fn sampleGradient(pos : vec3<f32>, step : f32) -> vec3<f32> {
+        let eps = vec3<f32>(step, step, step);
+        let dx = textureSampleLevel(volumeTexture, volumeSampler, pos + vec3<f32>(eps.x, 0.0, 0.0), 0.0).r -
+                 textureSampleLevel(volumeTexture, volumeSampler, pos - vec3<f32>(eps.x, 0.0, 0.0), 0.0).r;
+        let dy = textureSampleLevel(volumeTexture, volumeSampler, pos + vec3<f32>(0.0, eps.y, 0.0), 0.0).r -
+                 textureSampleLevel(volumeTexture, volumeSampler, pos - vec3<f32>(0.0, eps.y, 0.0), 0.0).r;
+        let dz = textureSampleLevel(volumeTexture, volumeSampler, pos + vec3<f32>(0.0, 0.0, eps.z), 0.0).r -
+                 textureSampleLevel(volumeTexture, volumeSampler, pos - vec3<f32>(0.0, 0.0, eps.z), 0.0).r;
+        return normalize(vec3<f32>(dx, dy, dz));
+      }
+
+      @fragment
+      fn fs_main(in : VertexOutput) -> @location(0) vec4<f32> {
+        let screenNear = vec4<f32>(in.uv.x * 2.0 - 1.0, (1.0 - in.uv.y) * 2.0 - 1.0, 0.0, 1.0);
+        let screenFar  = vec4<f32>(in.uv.x * 2.0 - 1.0, (1.0 - in.uv.y) * 2.0 - 1.0, 1.0, 1.0);
+
+        var worldNearH = uniforms.invViewProj * screenNear;
+        var worldFarH  = uniforms.invViewProj * screenFar;
+
+        let worldNear = worldNearH.xyz / worldNearH.w;
+        let worldFar  = worldFarH.xyz / worldFarH.w;
+
+        let rayOrigin = worldNear;
+        let rayDir    = normalize(worldFar - worldNear);
+
+        let hit = intersectBox(rayOrigin, rayDir, vec3<f32>(0.0), vec3<f32>(1.0));
+        let tNear = hit.x;
+        let tFar  = hit.y;
+
+        let bgColor = vec3<f32>(0.03, 0.04, 0.06);
+
+        if (tNear > tFar || tFar < 0.0) {
+          return vec4<f32>(bgColor, 1.0);
+        }
+
+        let tStart = max(tNear, 0.0);
+        let stepSize = 0.003;
+        var rayPos = rayOrigin + rayDir * tStart;
+        var accumulatedColor = vec4<f32>(0.0);
+
+        let numSteps = i32((tFar - tStart) / stepSize);
+        let lightDir = normalize(vec3<f32>(1.0, 2.0, 1.5));
+
+        for (var i = 0; i < numSteps; i++) {
+          let scalarDensity = textureSampleLevel(volumeTexture, volumeSampler, rayPos, 0.0).r;
+
+          if (scalarDensity > uniforms.threshold) {
+            let norm = sampleGradient(rayPos, stepSize * 2.0);
+            let diff = max(dot(-norm, lightDir), 0.25);
+
+            var baseColor = vec3<f32>(0.92, 0.88, 0.78) * diff; // Bone Ivory
+            if (scalarDensity < 0.45) {
+              baseColor = vec3<f32>(0.75, 0.25, 0.2) * diff; // Soft Tissue
+            }
+
+            let alpha = (scalarDensity - uniforms.threshold) * uniforms.densityScale;
+            let color = vec4<f32>(baseColor, alpha);
+
+            accumulatedColor += (1.0 - accumulatedColor.a) * color;
+
+            if (accumulatedColor.a >= 0.98) {
+              break;
+            }
+          }
+
+          rayPos += rayDir * stepSize;
+        }
+
+        let finalColor = mix(bgColor, accumulatedColor.rgb, accumulatedColor.a);
+        return vec4<f32>(finalColor, 1.0);
+      }
+    `;
+
+    // ------------------------------------------------------------------
+    // 3. ENGINE INITIALIZATION & RENDER LOOP
+    // ------------------------------------------------------------------
+    async function initEngine() {
+      if (!navigator.gpu) {
+        document.getElementById('error-modal').style.display = 'flex';
+        return;
+      }
+
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) {
+        document.getElementById('error-modal').style.display = 'flex';
+        return;
+      }
+
+      const device = await adapter.requestDevice();
+      const canvas = document.getElementById('webgpu-canvas');
+      const context = canvas.getContext('webgpu');
+
+      const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+      canvas.width = window.innerWidth * window.devicePixelRatio;
+      canvas.height = window.innerHeight * window.devicePixelRatio;
+
+      context.configure({
+        device,
+        format: presentationFormat,
+        alphaMode: 'premultiplied',
+      });
+
+      // --- Volume VRAM Upload ---
+      const VOL_DIM = 128; // 128x128x128 3D Volume
+      const volumeData = generateAnatomicalVolume(VOL_DIM, VOL_DIM, VOL_DIM);
+
+      const volumeTexture = device.createTexture({
+        size: [VOL_DIM, VOL_DIM, VOL_DIM],
+        dimension: '3d',
+        format: 'r8unorm',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+      });
+
+      device.queue.writeTexture(
+        { texture: volumeTexture },
+        volumeData,
+        { bytesPerRow: VOL_DIM, rowsPerImage: VOL_DIM },
+        { width: VOL_DIM, height: VOL_DIM, depth: VOL_DIM }
+      );
+
+      const volumeSampler = device.createSampler({
+        magFilter: 'linear',
+        minFilter: 'linear',
+      });
+
+      // --- Uniform Buffer Allocation (80 Bytes) ---
+      const uniformBuffer = device.createBuffer({
+        size: 80,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      });
+
+      const shaderModule = device.createShaderModule({ code: wgslShader });
+
+      const pipeline = device.createRenderPipeline({
+        layout: 'auto',
+        vertex: { module: shaderModule, entryPoint: 'vs_main' },
+        fragment: { module: shaderModule, entryPoint: 'fs_main', targets: [{ format: presentationFormat }] },
+        primitive: { topology: 'triangle-strip' },
+      });
+
+      const bindGroup = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: uniformBuffer } },
+          { binding: 1, resource: volumeTexture.createView() },
+          { binding: 2, resource: volumeSampler },
+        ],
+      });
+
+      // --- Orbit Controls State ---
+      let radius = 2.2;
+      let theta = 0.8;
+      let phi = 0.4;
+      let isDragging = false;
+      let prevMouseX = 0;
+      let prevMouseY = 0;
+
+      canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+      });
+
+      window.addEventListener('mouseup', () => isDragging = false);
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevMouseX;
+        const dy = e.clientY - prevMouseY;
+        prevMouseX = e.clientX;
+        prevMouseY = e.clientY;
+
+        theta -= dx * 0.005;
+        phi = Math.max(0.1, Math.min(Math.PI - 0.1, phi - dy * 0.005));
+      });
+
+      canvas.addEventListener('wheel', (e) => {
+        radius = Math.max(1.1, Math.min(5.0, radius + e.deltaY * 0.002));
+      });
+
+      // Scratchpad Memory (Zero Garbage Collection Allocations)
+      const projMatrix = mat4.create();
+      const viewMatrix = mat4.create();
+      const viewProjMatrix = mat4.create();
+      const invViewProj = mat4.create();
+      const cameraPos = vec3.create();
+      const targetPos = vec3.create(0.5, 0.5, 0.5);
+      const upVector = vec3.create(0, 1, 0);
+      const uniformData = new Float32Array(20);
+
+      // --- Render Frame ---
+      function frame() {
+        // Compute Camera Orbit
+        cameraPos[0] = 0.5 + radius * Math.sin(phi) * Math.sin(theta);
+        cameraPos[1] = 0.5 + radius * Math.cos(phi);
+        cameraPos[2] = 0.5 + radius * Math.sin(phi) * Math.cos(theta);
+
+        const aspect = canvas.width / canvas.height;
+        mat4.perspective(Math.PI / 4, aspect, 0.1, 10.0, projMatrix);
+        mat4.lookAt(cameraPos, targetPos, upVector, viewMatrix);
+        mat4.multiply(projMatrix, viewMatrix, viewProjMatrix);
+        mat4.invert(viewProjMatrix, invViewProj);
+
+        // Populate Uniform Slices
+        for (let i = 0; i < 16; i++) uniformData[i] = invViewProj[i];
+        uniformData[16] = parseFloat(document.getElementById('threshold-slider').value);
+        uniformData[17] = parseFloat(document.getElementById('opacity-slider').value);
+
+        device.queue.writeBuffer(uniformBuffer, 0, uniformData.buffer);
+
+        const commandEncoder = device.createCommandEncoder();
+        const textureView = context.getCurrentTexture().createView();
+
+        const renderPass = commandEncoder.beginRenderPass({
+          colorAttachments: [{
+            view: textureView,
+            clearValue: { r: 0.03, g: 0.04, b: 0.06, a: 1.0 },
+            loadOp: 'clear',
+            storeOp: 'store',
+          }],
+        });
+
+        renderPass.setPipeline(pipeline);
+        renderPass.setBindGroup(0, bindGroup);
+        renderPass.draw(4, 1);
+        renderPass.end();
+
+        device.queue.submit([commandEncoder.finish()]);
+
+        requestAnimationFrame(frame);
+      }
+
+      // UI Listeners
+      document.getElementById('threshold-slider').addEventListener('input', (e) => {
+        document.getElementById('threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
+      });
+      document.getElementById('opacity-slider').addEventListener('input', (e) => {
+        document.getElementById('opacity-val').textContent = parseFloat(e.target.value).toFixed(2);
+      });
+
+      window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth * window.devicePixelRatio;
+        canvas.height = window.innerHeight * window.devicePixelRatio;
+      });
+
+      requestAnimationFrame(frame);
+    }
+
+    initEngine();
+  </script>
+</body>
+</html>
