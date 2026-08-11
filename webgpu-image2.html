@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project Heimdall — Real Medical CT WebGPU Engine</title>
+  <title>Project Heimdall — WebGPU Medical CT Engine</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: #080a0f; color: #e2e8f0; }
@@ -50,8 +50,8 @@
 
     <div class="hud-panel">
       <div class="hud-header">
-        <span class="hud-title">HEIMDALL 3D — REAL CT</span>
-        <span class="badge" id="gpu-badge">WebGPU</span>
+        <span class="hud-title">HEIMDALL 3D — WEBGPU CT</span>
+        <span class="badge" id="gpu-badge">r16unorm</span>
       </div>
 
       <div class="status-box" id="status-indicator">
@@ -61,22 +61,30 @@
 
       <div class="control-group">
         <div class="control-label">
-          <span>Tissue / Bone Threshold</span>
-          <span id="threshold-val">0.18</span>
+          <span>Window Width (WW)</span>
+          <span id="ww-val">0.40</span>
         </div>
-        <input type="range" id="threshold-slider" min="0.05" max="0.60" step="0.01" value="0.18" />
+        <input type="range" id="ww-slider" min="0.05" max="1.00" step="0.01" value="0.40" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>Window Level (WL)</span>
+          <span id="wl-val">0.25</span>
+        </div>
+        <input type="range" id="wl-slider" min="0.00" max="0.80" step="0.01" value="0.25" />
       </div>
 
       <div class="control-group">
         <div class="control-label">
           <span>Density Scale (Ray Opacity)</span>
-          <span id="opacity-val">22.0</span>
+          <span id="opacity-val">25.0</span>
         </div>
-        <input type="range" id="opacity-slider" min="1.0" max="50.0" step="1.0" value="22.0" />
+        <input type="range" id="opacity-slider" min="1.0" max="60.0" step="1.0" value="25.0" />
       </div>
 
       <div class="hud-footer">
-        <div>• <b>Source:</b> UNC Real CT Head Dataset</div>
+        <div>• <b>Source:</b> UNC CT Head Dataset (16-bit pipeline)</div>
         <div>• <b>Left Click + Drag:</b> 3D Orbit Rotate</div>
         <div>• <b>Scroll Wheel:</b> Zoom In / Out</div>
       </div>
@@ -85,7 +93,7 @@
     <div id="error-modal">
       <div class="error-card">
         <h2>WebGPU Not Supported</h2>
-        <p>Your web browser or graphics card does not support WebGPU extensions.</p>
+        <p>Your web browser or graphics card does not support WebGPU. Please open in Chrome 113+, Edge 113+, or Safari 18+ on a compatible device.</p>
       </div>
     </div>
   </div>
@@ -192,25 +200,29 @@
         const response = await fetch(dataUrl);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const buffer = await response.arrayBuffer();
-        return {
-          data: new Uint8Array(buffer),
-          dimX: 128, dimY: 128, dimZ: 93
-        };
+        const raw8 = new Uint8Array(buffer);
+        
+        // Convert 8-bit source into 16-bit Uint16Array scale to demonstrate 16-bit texture pipeline
+        const raw16 = new Uint16Array(raw8.length);
+        for (let i = 0; i < raw8.length; i++) {
+          raw16[i] = raw8[i] * 257; // Upscale 0..255 to 0..65535
+        }
+        return { data: raw16, dimX: 128, dimY: 128, dimZ: 93 };
       } catch (err) {
-        console.warn("CDN fetch failed, using internal fallback dataset", err);
-        return generateFallbackCTData(128, 128, 93);
+        console.warn("CDN fetch failed, using internal synthetic 16-bit CT dataset", err);
+        return generateSynthetic16BitCT(128, 128, 93);
       }
     }
 
-    function generateFallbackCTData(dimX, dimY, dimZ) {
-      const data = new Uint8Array(dimX * dimY * dimZ);
+    function generateSynthetic16BitCT(dimX, dimY, dimZ) {
+      const data = new Uint16Array(dimX * dimY * dimZ);
       for (let z = 0; z < dimZ; z++) {
         for (let y = 0; y < dimY; y++) {
           for (let x = 0; x < dimX; x++) {
             const idx = x + y * dimX + z * dimX * dimY;
             const nx = (x - dimX/2)/(dimX/2), ny = (y - dimY/2)/(dimY/2), nz = (z - dimZ/2)/(dimZ/2);
             const dist = Math.hypot(nx, ny, nz);
-            data[idx] = (dist > 0.35 && dist < 0.8) ? 180 : (dist <= 0.35 ? 70 : 0);
+            data[idx] = (dist > 0.35 && dist < 0.8) ? 45000 : (dist <= 0.35 ? 18000 : 0);
           }
         }
       }
@@ -220,10 +232,10 @@
     const wgslShader = `
       struct Uniforms {
         invViewProj  : mat4x4<f32>,
-        threshold    : f32,
+        windowWidth  : f32,
+        windowLevel  : f32,
         densityScale : f32,
         pad0         : f32,
-        pad1         : f32,
       };
 
       @group(0) @binding(0) var<uniform> uniforms : Uniforms;
@@ -306,19 +318,26 @@
         let numSteps = i32((tFar - tStart) / stepSize);
         let lightDir = normalize(vec3<f32>(0.8, 1.5, 1.2));
 
-        for (var i = 0; i < numSteps; i++) {
-          let scalarDensity = textureSampleLevel(volumeTexture, volumeSampler, rayPos, 0.0).r;
+        // Radiologic Windowing Bounds
+        let winMin = uniforms.windowLevel - (uniforms.windowWidth * 0.5);
+        let winMax = uniforms.windowLevel + (uniforms.windowWidth * 0.5);
 
-          if (scalarDensity > uniforms.threshold) {
+        for (var i = 0; i < numSteps; i++) {
+          let rawNormalized = textureSampleLevel(volumeTexture, volumeSampler, rayPos, 0.0).r;
+
+          // GPU Window/Level Contrast Adjusting
+          let windowedDensity = clamp((rawNormalized - winMin) / (winMax - winMin), 0.0, 1.0);
+
+          if (windowedDensity > 0.01) {
             let norm = sampleGradient(rayPos, stepSize * 2.0);
             let diff = max(dot(-norm, lightDir), 0.15);
 
             var baseColor = vec3<f32>(0.92, 0.88, 0.78) * diff; // Bone
-            if (scalarDensity < 0.30) {
+            if (windowedDensity < 0.50) {
               baseColor = vec3<f32>(0.75, 0.25, 0.20) * diff; // Soft tissue
             }
 
-            let alpha = clamp((scalarDensity - uniforms.threshold) * uniforms.densityScale * stepSize, 0.0, 1.0);
+            let alpha = clamp(windowedDensity * uniforms.densityScale * stepSize, 0.0, 1.0);
             let weight = (1.0 - accumulatedColor.a) * alpha;
 
             accumulatedColor += vec4<f32>(baseColor * weight, weight);
@@ -359,32 +378,33 @@
         alphaMode: 'premultiplied',
       });
 
-      // 1. Fetch CT Data
+      // 1. Fetch 16-Bit CT Dataset
       const ctVolume = await fetchRealCTVolume();
       
       document.getElementById('status-spinner').style.display = 'none';
       document.getElementById('status-indicator').style.borderColor = 'rgba(34, 197, 94, 0.4)';
-      document.getElementById('status-text').textContent = `Loaded UNC CT: ${ctVolume.dimX}x${ctVolume.dimY}x${ctVolume.dimZ}`;
+      document.getElementById('status-text').textContent = `Loaded 16-bit CT: ${ctVolume.dimX}x${ctVolume.dimY}x${ctVolume.dimZ}`;
       document.getElementById('status-text').style.color = '#4ade80';
 
-      // 2. Align data buffer to 256-byte row stride for WebGPU compatibility
-      const unpaddedBytesPerRow = ctVolume.dimX;
-      const paddedBytesPerRow = Math.ceil(unpaddedBytesPerRow / 256) * 256; // 256
-      const paddedBuffer = new Uint8Array(paddedBytesPerRow * ctVolume.dimY * ctVolume.dimZ);
+      // 2. Align 16-bit buffer (Uint16Array = 2 bytes/texel) to 256-byte row stride
+      const bytesPerTexel = 2;
+      const unpaddedBytesPerRow = ctVolume.dimX * bytesPerTexel; // 128 * 2 = 256 bytes
+      const paddedBytesPerRow = Math.ceil(unpaddedBytesPerRow / 256) * 256; // 256 bytes
+      const paddedBuffer = new Uint16Array((paddedBytesPerRow / bytesPerTexel) * ctVolume.dimY * ctVolume.dimZ);
 
       for (let z = 0; z < ctVolume.dimZ; z++) {
         for (let y = 0; y < ctVolume.dimY; y++) {
           const srcIdx = (z * ctVolume.dimY + y) * ctVolume.dimX;
-          const dstIdx = (z * ctVolume.dimY + y) * paddedBytesPerRow;
+          const dstIdx = (z * ctVolume.dimY + y) * (paddedBytesPerRow / bytesPerTexel);
           paddedBuffer.set(ctVolume.data.subarray(srcIdx, srcIdx + ctVolume.dimX), dstIdx);
         }
       }
 
-      // 3. Create 3D Texture and upload aligned bytes
+      // 3. Create 3D Texture with 'r16unorm' 16-bit precision
       const volumeTexture = device.createTexture({
         size: [ctVolume.dimX, ctVolume.dimY, ctVolume.dimZ],
         dimension: '3d',
-        format: 'r8unorm',
+        format: 'r16unorm',
         usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
       });
 
@@ -470,8 +490,9 @@
         mat4Invert(invViewProj, viewProjMatrix);
 
         for (let i = 0; i < 16; i++) uniformData[i] = invViewProj[i];
-        uniformData[16] = parseFloat(document.getElementById('threshold-slider').value);
-        uniformData[17] = parseFloat(document.getElementById('opacity-slider').value);
+        uniformData[16] = parseFloat(document.getElementById('ww-slider').value);
+        uniformData[17] = parseFloat(document.getElementById('wl-slider').value);
+        uniformData[18] = parseFloat(document.getElementById('opacity-slider').value);
 
         device.queue.writeBuffer(uniformBuffer, 0, uniformData.buffer);
 
@@ -497,8 +518,11 @@
         requestAnimationFrame(frame);
       }
 
-      document.getElementById('threshold-slider').addEventListener('input', (e) => {
-        document.getElementById('threshold-val').textContent = parseFloat(e.target.value).toFixed(2);
+      document.getElementById('ww-slider').addEventListener('input', (e) => {
+        document.getElementById('ww-val').textContent = parseFloat(e.target.value).toFixed(2);
+      });
+      document.getElementById('wl-slider').addEventListener('input', (e) => {
+        document.getElementById('wl-val').textContent = parseFloat(e.target.value).toFixed(2);
       });
       document.getElementById('opacity-slider').addEventListener('input', (e) => {
         document.getElementById('opacity-val').textContent = parseFloat(e.target.value).toFixed(0);
